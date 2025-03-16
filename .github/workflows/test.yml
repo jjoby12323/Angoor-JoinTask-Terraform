@@ -36,8 +36,14 @@ jobs:
       - name: Capture ECR Outputs
         id: tf_outputs
         run: |
-              echo "ECR_DJANGO=$(terraform output -raw ecr_django_repo | tr -d '\n')" >> $GITHUB_ENV
-              echo "ECR_CELERY=$(terraform output -raw ecr_celery_repo | tr -d '\n')" >> $GITHUB_ENV
+          ECR_DJANGO_URL=$(terraform output -raw ecr_django_repo | tr -d '\r')
+          ECR_CELERY_URL=$(terraform output -raw ecr_celery_repo | tr -d '\r')
+          
+          echo "ECR_DJANGO=$ECR_DJANGO_URL" >> $GITHUB_ENV
+          echo "ECR_CELERY=$ECR_CELERY_URL" >> $GITHUB_ENV
+          
+          echo "Final ECR_DJANGO: $ECR_DJANGO_URL"
+          echo "Final ECR_CELERY: $ECR_CELERY_URL"
 
       - name: Debug ECR Environment Variables
         run: |
