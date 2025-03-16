@@ -24,12 +24,20 @@ output "alb_dns" {
   value       = aws_lb.django_alb.dns_name
 }""" */
 
-output "ecr_django_repo" {
+/* """output "ecr_django_repo" {
   value = aws_ecr_repository.django_repo.repository_url
 }
 
 output "ecr_celery_repo" {
   value = aws_ecr_repository.celery_repo.repository_url
+}""" */
+
+output "ecr_django_repo" {
+  value = jsonencode(aws_ecr_repository.django_repo.repository_url)
+}
+
+output "ecr_celery_repo" {
+  value = jsonencode(aws_ecr_repository.celery_repo.repository_url)
 }
 
 output "ecs_django_cluster_name" {
