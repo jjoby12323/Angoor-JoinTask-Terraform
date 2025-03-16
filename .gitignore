@@ -1,0 +1,21 @@
+# Ignore the .terraform directory (Terraform downloads dependencies automatically)
+.terraform/
+
+# Ignore Terraform state files (they contain sensitive data)
+terraform.tfstate
+terraform.tfstate.backup
+
+# Ignore lock file (machine-specific and can be regenerated)
+.terraform.lock.hcl
+
+# Ignore any crash logs that Terraform may generate
+crash.log
+
+# Ignore any other backup files
+*.tfstate.backup
+
+# Ignore IDE/editor-specific files (optional)
+.vscode/
+.idea/
+*.swp
+*.swo
