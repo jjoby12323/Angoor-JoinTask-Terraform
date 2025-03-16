@@ -29,13 +29,12 @@ jobs:
 
       - name: Terraform Apply (Only ECR)
         run: terraform apply -target=aws_ecr_repository.django_repo -target=aws_ecr_repository.celery_repo -auto-approve
-
-      - name: Debug Terraform Outputs
-        run: terraform output
-
+      
       - name: Capture ECR Outputs
         id: tf_outputs
         run: |
+              terraform output
+              
               ECR_DJANGO_URL=$(terraform output -json | jq -r '.ecr_django_repo')
               ECR_CELERY_URL=$(terraform output -json | jq -r '.ecr_celery_repo')
 
