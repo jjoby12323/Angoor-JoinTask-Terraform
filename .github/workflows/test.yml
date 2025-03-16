@@ -46,8 +46,8 @@ jobs:
       - name: Checkout Django Repository
         uses: actions/checkout@v4
         with:
-          repository: your-org/django
-          ref: main  # Adjust if necessary
+          repository: jjoby12323/Angoor-JoinTask-Django
+          ref: main
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
