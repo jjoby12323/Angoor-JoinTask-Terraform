@@ -33,8 +33,9 @@ jobs:
       - name: Capture ECR Outputs
         id: tf_outputs
         run: |
-          echo "ECR_DJANGO=$(terraform output -raw ecr_django_repo)" >> $GITHUB_ENV
-          echo "ECR_CELERY=$(terraform output -raw ecr_celery_repo)" >> $GITHUB_ENV
+          echo "ECR_DJANGO=$(terraform output -raw ecr_django_repo | tr -d '\n')" >> $GITHUB_ENV
+          echo "ECR_CELERY=$(terraform output -raw ecr_celery_repo | tr -d '\n')" >> $GITHUB_ENV
+
 
   docker:
     name: Build and Push Docker Images
