@@ -7,6 +7,7 @@ terraform.tfstate.backup
 
 # Ignore lock file (machine-specific and can be regenerated)
 .terraform.lock.hcl
+.terraform.tfstate.locl.info
 
 # Ignore any crash logs that Terraform may generate
 crash.log

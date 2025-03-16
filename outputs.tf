@@ -31,3 +31,19 @@ output "ecr_django_repo" {
 output "ecr_celery_repo" {
   value = aws_ecr_repository.celery_repo.repository_url
 }
+
+output "ecs_django_cluster_name" {
+  value = aws_ecs_cluster.django.name
+}
+
+output "ecs_celery_cluster_name" {
+  value = aws_ecs_cluster.celery.name
+}
+
+output "ecs_django_task_definition" {
+  value = aws_ecs_task_definition.django.arn
+}
+
+output "ecs_celery_task_definition" {
+  value = aws_ecs_task_definition.celery.arn
+}
