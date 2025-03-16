@@ -30,12 +30,14 @@ jobs:
       - name: Terraform Apply (Only ECR)
         run: terraform apply -target=aws_ecr_repository.django_repo -target=aws_ecr_repository.celery_repo -auto-approve
 
+      - name: Debug Terraform Outputs
+        run: terraform output
+
       - name: Capture ECR Outputs
         id: tf_outputs
         run: |
-          echo "ECR_DJANGO=$(terraform output -raw ecr_django_repo | tr -d '\n')" >> $GITHUB_ENV
-          echo "ECR_CELERY=$(terraform output -raw ecr_celery_repo | tr -d '\n')" >> $GITHUB_ENV
-
+              echo "ECR_DJANGO=$(terraform output -raw ecr_django_repo | tr -d '\n')" >> $GITHUB_ENV
+              echo "ECR_CELERY=$(terraform output -raw ecr_celery_repo | tr -d '\n')" >> $GITHUB_ENV
 
   docker:
     name: Build and Push Docker Images
@@ -49,11 +51,6 @@ jobs:
           repository: jjoby12323/Angoor-JoinTask-Django
           ref: main
 
-      - name: Debug Terraform Outputs
-        run: |
-              echo "ECR_DJANGO: $ECR_DJANGO"
-              echo "ECR_CELERY: $ECR_CELERY"
-              
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
