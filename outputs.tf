@@ -18,15 +18,16 @@ output "redis_primary_endpoint" {
   value       = aws_elasticache_replication_group.redis.primary_endpoint_address
 }""" */
 
-/* """output "django_ecr_url" {
-  value = aws_ecr_repository.django_repo.repository_url
-}
-
-output "celery_ecr_url" {
-  value = aws_ecr_repository.celery_repo.repository_url
-}
-
+/* """
 output "alb_dns" {
   description = "DNS name of the Application Load Balancer"
   value       = aws_lb.django_alb.dns_name
 }""" */
+
+output "ecr_django_repo" {
+  value = aws_ecr_repository.django_repo.repository_url
+}
+
+output "ecr_celery_repo" {
+  value = aws_ecr_repository.celery_repo.repository_url
+}
