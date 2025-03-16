@@ -49,6 +49,11 @@ jobs:
           repository: jjoby12323/Angoor-JoinTask-Django
           ref: main
 
+      - name: Debug Terraform Outputs
+        run: |
+              echo "ECR_DJANGO: $ECR_DJANGO"
+              echo "ECR_CELERY: $ECR_CELERY"
+              
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
