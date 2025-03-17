@@ -42,10 +42,17 @@ jobs:
           echo "Final ECR_DJANGO: $ECR_DJANGO_URL"
           echo "Final ECR_CELERY: $ECR_CELERY_URL"
 
-      - name: Debug ECR Environment Variables
+      - name: Sanitize and Export ECR Variables
         run: |
-          echo "ECR_DJANGO from ENV: $ECR_DJANGO"
-          echo "ECR_CELERY from ENV: $ECR_CELERY"
+          export ECR_DJANGO_CLEANED=$(echo $ECR_DJANGO | tr -d '\n' | tr -d '\r' | xargs)
+          export ECR_CELERY_CLEANED=$(echo $ECR_CELERY | tr -d '\n' | tr -d '\r' | xargs)
+
+          echo "ECR_DJANGO_CLEANED=$ECR_DJANGO_CLEANED" >> $GITHUB_ENV
+          echo "ECR_CELERY_CLEANED=$ECR_CELERY_CLEANED" >> $GITHUB_ENV
+
+          echo "Sanitized ECR_DJANGO: '$ECR_DJANGO_CLEANED'"
+          echo "Sanitized ECR_CELERY: '$ECR_CELERY_CLEANED'"
+
 
   docker:
     name: Build and Push Docker Images
@@ -68,8 +75,8 @@ jobs:
 
       - name: Login to Amazon ECR
         run: |
-          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_DJANGO
-          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_CELERY
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_DJANGO_CLEANED
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_CELERY_CLEANED
 
       - name: Build and Push Django Image
         run: |
