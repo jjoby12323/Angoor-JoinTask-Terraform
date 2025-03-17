@@ -3,7 +3,9 @@ name: Production Deployment
 on:
   push:
     branches:
-      - prod-*  # Triggers only for production branches
+      - prod-*  # Runs when pushing to Terraform repo’s prod branch
+  repository_dispatch:
+    types: [deploy_terraform]  # Runs when Django repo sends a trigger
 
 jobs:
   docker:
