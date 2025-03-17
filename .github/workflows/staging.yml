@@ -3,7 +3,9 @@ name: Staging Deployment
 on:
   push:
     branches:
-      - staging-*  # Triggers only for staging branches
+      - staging-*  # Runs when pushing to Terraform repo’s staging branch
+  repository_dispatch:
+    types: [deploy_terraform]  # Runs when Django repo sends a trigger
 
 jobs:
   docker:
