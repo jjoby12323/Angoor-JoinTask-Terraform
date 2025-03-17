@@ -1,16 +1,21 @@
-name: Staging Deployment
+name: Deploy to Staging/Production
 
 on:
   push:
     branches:
-      - staging-*  # Runs when pushing to Terraform repo’s staging branch
+      - staging-*
+      - prod-*
   repository_dispatch:
-    types: [deploy_terraform]  # Runs when Django repo sends a trigger
+    types: [deploy_terraform]
 
 jobs:
   docker:
-    name: Build and Push Docker Images (Staging)
+    name: Build and Push Docker Images
     runs-on: ubuntu-latest
+    env:
+      ENVIRONMENT: ${{ startsWith(github.ref, 'refs/heads/prod-') && 'prod' || 'staging' }}
+      ECR_DJANGO: ${{ startsWith(github.ref, 'refs/heads/prod-') && '762233750800.dkr.ecr.us-east-1.amazonaws.com/django-app-prod' || '762233750800.dkr.ecr.us-east-1.amazonaws.com/django-app-staging' }}
+      ECR_CELERY: ${{ startsWith(github.ref, 'refs/heads/prod-') && '762233750800.dkr.ecr.us-east-1.amazonaws.com/celery-worker-prod' || '762233750800.dkr.ecr.us-east-1.amazonaws.com/celery-worker-staging' }}
 
     steps:
       - name: Checkout Django Repository
@@ -25,11 +30,6 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Set ECR Repositories
-        run: |
-          echo "ECR_DJANGO=762233750800.dkr.ecr.us-east-1.amazonaws.com/django-app-staging" >> $GITHUB_ENV
-          echo "ECR_CELERY=762233750800.dkr.ecr.us-east-1.amazonaws.com/celery-worker-staging" >> $GITHUB_ENV
 
       - name: Login to Amazon ECR
         run: |
@@ -58,7 +58,7 @@ jobs:
           docker push $ECR_CELERY:latest
 
   terraform:
-    name: Terraform Apply (Staging)
+    name: Terraform Apply
     needs: docker
     runs-on: ubuntu-latest
 
