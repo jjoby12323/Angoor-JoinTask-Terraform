@@ -41,11 +41,19 @@ jobs:
           docker tag django-app:$IMAGE_TAG $ECR_DJANGO:$IMAGE_TAG
           docker push $ECR_DJANGO:$IMAGE_TAG
 
+          # Tag latest for ECS compatibility
+          docker tag django-app:$IMAGE_TAG $ECR_DJANGO:latest
+          docker push $ECR_DJANGO:latest
+
       - name: Build and Push Celery Image
         run: |
-          docker build -t celery-worker:$IMAGE_TAG -f Dockerfile .
+          docker build -t celery-worker:$IMAGE_TAG -f Dockerfile-celery .
           docker tag celery-worker:$IMAGE_TAG $ECR_CELERY:$IMAGE_TAG
           docker push $ECR_CELERY:$IMAGE_TAG
+
+          # Tag latest for ECS compatibility
+          docker tag celery-worker:$IMAGE_TAG $ECR_CELERY:latest
+          docker push $ECR_CELERY:latest
 
   terraform:
     name: Terraform Apply
