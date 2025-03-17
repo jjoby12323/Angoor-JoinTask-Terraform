@@ -52,13 +52,13 @@ resource "aws_security_group" "ecs_sg" {
   }
 }
 
-/* # Security Group for ALB
+# Security Group for ALB
 resource "aws_security_group" "alb_sg" {
   name        = "alb-sg-${var.environment}"
   description = "Security group for ALB"
   vpc_id      = data.aws_vpc.default.id
 
-  # Allow inbound HTTP traffic from anywhere
+  # Allow HTTP traffic from anywhere (you can restrict later)
   ingress {
     from_port   = 80
     to_port     = 80
@@ -66,15 +66,15 @@ resource "aws_security_group" "alb_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Allow outbound traffic to ECS tasks
+  # Allow all outbound traffic
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]  # Allow all traffic to ECS
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   tags = {
     Name = "alb-sg-${var.environment}"
   }
-} */
+}

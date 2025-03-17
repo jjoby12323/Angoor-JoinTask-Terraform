@@ -47,3 +47,8 @@ output "ecs_django_task_definition" {
 output "ecs_celery_task_definition" {
   value = aws_ecs_task_definition.celery.arn
 }""" */
+
+output "alb_dns_name" {
+  description = "The DNS name of the Application Load Balancer"
+  value       = aws_lb.django_alb.dns_name
+}
