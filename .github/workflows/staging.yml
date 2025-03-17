@@ -1,0 +1,86 @@
+name: Staging Deployment
+
+on:
+  push:
+    branches:
+      - staging-*  # Triggers only for staging branches
+
+jobs:
+  docker:
+    name: Build and Push Docker Images (Staging)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Django Repository
+        uses: actions/checkout@v4
+        with:
+          repository: jjoby12323/Angoor-JoinTask-Django
+          ref: ${{ github.ref_name }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Set ECR Repositories
+        run: |
+          echo "ECR_DJANGO=762233750800.dkr.ecr.us-east-1.amazonaws.com/django-app-staging" >> $GITHUB_ENV
+          echo "ECR_CELERY=762233750800.dkr.ecr.us-east-1.amazonaws.com/celery-worker-staging" >> $GITHUB_ENV
+
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_DJANGO
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_CELERY
+
+      - name: Build and Push Django Image
+        run: |
+          IMAGE_TAG=$(date +%s)
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+
+          docker build -t django-app:$IMAGE_TAG -f Dockerfile .
+          docker tag django-app:$IMAGE_TAG $ECR_DJANGO:$IMAGE_TAG
+          docker push $ECR_DJANGO:$IMAGE_TAG
+
+          docker tag django-app:$IMAGE_TAG $ECR_DJANGO:latest
+          docker push $ECR_DJANGO:latest
+
+      - name: Build and Push Celery Image
+        run: |
+          docker build -t celery-worker:$IMAGE_TAG -f Dockerfile-celery .
+          docker tag celery-worker:$IMAGE_TAG $ECR_CELERY:$IMAGE_TAG
+          docker push $ECR_CELERY:$IMAGE_TAG
+
+          docker tag celery-worker:$IMAGE_TAG $ECR_CELERY:latest
+          docker push $ECR_CELERY:latest
+
+  terraform:
+    name: Terraform Apply (Staging)
+    needs: docker
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Terraform Repository
+        uses: actions/checkout@v4
+        with:
+          repository: jjoby12323/Angoor-JoinTask-Terraform
+          ref: ${{ github.ref_name }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.0
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
