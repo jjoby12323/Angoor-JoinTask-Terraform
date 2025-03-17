@@ -1,4 +1,4 @@
-name: Update Docker Image & ECS Task
+name: Build & Deploy Infrastructure
 
 on:
   workflow_dispatch:  # Allows manual triggering from GitHub Actions
@@ -22,7 +22,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Set ECR Repositories Manually
+      - name: Set ECR Repositories
         run: |
           echo "ECR_DJANGO=762233750800.dkr.ecr.us-east-1.amazonaws.com/django-app-dev" >> $GITHUB_ENV
           echo "ECR_CELERY=762233750800.dkr.ecr.us-east-1.amazonaws.com/celery-worker-dev" >> $GITHUB_ENV
@@ -47,12 +47,18 @@ jobs:
           docker tag celery-worker:$IMAGE_TAG $ECR_CELERY:$IMAGE_TAG
           docker push $ECR_CELERY:$IMAGE_TAG
 
-  update-ecs:
-    name: Update ECS Task Definition
+  terraform:
+    name: Terraform Apply
     needs: docker
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout Terraform Repository
+        uses: actions/checkout@v4
+        with:
+          repository: jjoby12323/Angoor-JoinTask-Terraform
+          ref: main
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -60,40 +66,13 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Update ECS Task Definition
-        run: |
-          TASK_FAMILY="django-task"
-          ECS_CLUSTER="django-cluster"
-          ECS_SERVICE="django-service"
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.0
 
-          # Get latest task definition
-          TASK_DEF=$(aws ecs describe-task-definition --task-definition $TASK_FAMILY)
+      - name: Terraform Init
+        run: terraform init
 
-          # Register a new task definition with the updated image
-          NEW_TASK_DEF=$(echo "$TASK_DEF" | jq --arg IMG "$ECR_DJANGO:$IMAGE_TAG" '.taskDefinition | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy) | .containerDefinitions[0].image = $IMG')
-
-          echo "$NEW_TASK_DEF" > new-task-def.json
-
-          aws ecs register-task-definition --cli-input-json file://new-task-def.json
-
-          # Force ECS Service to Deploy the New Task Definition
-          aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --force-new-deployment
-
-      - name: Update Celery Task Definition
-        run: |
-          TASK_FAMILY="celery-task"
-          ECS_CLUSTER="celery-cluster"
-          ECS_SERVICE="celery-service"
-
-          # Get latest task definition
-          TASK_DEF=$(aws ecs describe-task-definition --task-definition $TASK_FAMILY)
-
-          # Register a new task definition with the updated image
-          NEW_TASK_DEF=$(echo "$TASK_DEF" | jq --arg IMG "$ECR_CELERY:$IMAGE_TAG" '.taskDefinition | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy) | .containerDefinitions[0].image = $IMG')
-
-          echo "$NEW_TASK_DEF" > new-task-def.json
-
-          aws ecs register-task-definition --cli-input-json file://new-task-def.json
-
-          # Force ECS Service to Deploy the New Task Definition
-          aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --force-new-deployment
+      - name: Terraform Apply
+        run: terraform apply -auto-approve
