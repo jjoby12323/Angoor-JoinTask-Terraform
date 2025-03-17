@@ -1,62 +1,11 @@
-name: Test Deployment Workflow
+name: Update Docker Image & ECS Task
 
 on:
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch:  # Allows manual triggering from GitHub Actions
 
 jobs:
-  terraform-ecr:
-    name: Terraform Apply (ECR Only)
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout Terraform Repository
-        uses: actions/checkout@v4
-
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.6.0
-
-      - name: Terraform Init
-        run: terraform init
-
-      - name: Terraform Apply (Only ECR)
-        run: terraform apply -target=aws_ecr_repository.django_repo -target=aws_ecr_repository.celery_repo -auto-approve
-      
-      - name: Capture ECR Outputs
-        id: tf_outputs
-        run: |
-          ECR_DJANGO_URL="$(terraform output -raw ecr_django_repo | tr -d '\n' | tr -d '\r')"
-          ECR_CELERY_URL="$(terraform output -raw ecr_celery_repo | tr -d '\n' | tr -d '\r')"
-
-          echo "ECR_DJANGO=$ECR_DJANGO_URL" >> $GITHUB_ENV
-          echo "ECR_CELERY=$ECR_CELERY_URL" >> $GITHUB_ENV
-
-          echo "Final ECR_DJANGO: $ECR_DJANGO_URL"
-          echo "Final ECR_CELERY: $ECR_CELERY_URL"
-
-      - name: Sanitize and Export ECR Variables
-        run: |
-          export ECR_DJANGO_CLEANED=$(echo $ECR_DJANGO | tr -d '\n' | tr -d '\r' | xargs)
-          export ECR_CELERY_CLEANED=$(echo $ECR_CELERY | tr -d '\n' | tr -d '\r' | xargs)
-
-          echo "ECR_DJANGO_CLEANED=$ECR_DJANGO_CLEANED" >> $GITHUB_ENV
-          echo "ECR_CELERY_CLEANED=$ECR_CELERY_CLEANED" >> $GITHUB_ENV
-
-          echo "Sanitized ECR_DJANGO: '$ECR_DJANGO_CLEANED'"
-          echo "Sanitized ECR_CELERY: '$ECR_CELERY_CLEANED'"
-
-
   docker:
     name: Build and Push Docker Images
-    needs: terraform-ecr
     runs-on: ubuntu-latest
 
     steps:
@@ -73,32 +22,37 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: Set ECR Repositories Manually
+        run: |
+          echo "ECR_DJANGO=762233750800.dkr.ecr.us-east-1.amazonaws.com/django-app-dev" >> $GITHUB_ENV
+          echo "ECR_CELERY=762233750800.dkr.ecr.us-east-1.amazonaws.com/celery-worker-dev" >> $GITHUB_ENV
+
       - name: Login to Amazon ECR
         run: |
-          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_DJANGO_CLEANED
-          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_CELERY_CLEANED
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_DJANGO
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_CELERY
 
       - name: Build and Push Django Image
         run: |
-          docker build -t django-app:latest -f Dockerfile .
-          docker tag django-app:latest $ECR_DJANGO:latest
-          docker push $ECR_DJANGO:latest
+          IMAGE_TAG=$(date +%s)  # Use timestamp for unique tagging
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+
+          docker build -t django-app:$IMAGE_TAG -f Dockerfile .
+          docker tag django-app:$IMAGE_TAG $ECR_DJANGO:$IMAGE_TAG
+          docker push $ECR_DJANGO:$IMAGE_TAG
 
       - name: Build and Push Celery Image
         run: |
-          docker build -t celery-worker:latest -f Dockerfile .
-          docker tag celery-worker:latest $ECR_CELERY:latest
-          docker push $ECR_CELERY:latest
+          docker build -t celery-worker:$IMAGE_TAG -f Dockerfile .
+          docker tag celery-worker:$IMAGE_TAG $ECR_CELERY:$IMAGE_TAG
+          docker push $ECR_CELERY:$IMAGE_TAG
 
-  terraform-ecs:
-    name: Terraform Apply (ECS)
+  update-ecs:
+    name: Update ECS Task Definition
     needs: docker
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Terraform Repository
-        uses: actions/checkout@v4
-
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -106,33 +60,40 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.6.0
-
-      - name: Terraform Apply (Full Deployment)
-        run: terraform apply -auto-approve
-
-      - name: Capture ECS Outputs
-        id: tf_outputs
+      - name: Update ECS Task Definition
         run: |
-          echo "ECS_CLUSTER=$(terraform output -raw ecs_django_cluster_name)" >> $GITHUB_ENV
+          TASK_FAMILY="django-task"
+          ECS_CLUSTER="django-cluster"
+          ECS_SERVICE="django-service"
 
-  deploy:
-    name: Deploy to ECS
-    needs: terraform-ecs
-    runs-on: ubuntu-latest
+          # Get latest task definition
+          TASK_DEF=$(aws ecs describe-task-definition --task-definition $TASK_FAMILY)
 
-    steps:
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          # Register a new task definition with the updated image
+          NEW_TASK_DEF=$(echo "$TASK_DEF" | jq --arg IMG "$ECR_DJANGO:$IMAGE_TAG" '.taskDefinition | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy) | .containerDefinitions[0].image = $IMG')
 
-      - name: Update ECS Service
+          echo "$NEW_TASK_DEF" > new-task-def.json
+
+          aws ecs register-task-definition --cli-input-json file://new-task-def.json
+
+          # Force ECS Service to Deploy the New Task Definition
+          aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --force-new-deployment
+
+      - name: Update Celery Task Definition
         run: |
-          aws ecs update-service --cluster $ECS_CLUSTER --service django-service --force-new-deployment
-          aws ecs update-service --cluster $ECS_CLUSTER --service celery-service --force-new-deployment
+          TASK_FAMILY="celery-task"
+          ECS_CLUSTER="celery-cluster"
+          ECS_SERVICE="celery-service"
+
+          # Get latest task definition
+          TASK_DEF=$(aws ecs describe-task-definition --task-definition $TASK_FAMILY)
+
+          # Register a new task definition with the updated image
+          NEW_TASK_DEF=$(echo "$TASK_DEF" | jq --arg IMG "$ECR_CELERY:$IMAGE_TAG" '.taskDefinition | del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy) | .containerDefinitions[0].image = $IMG')
+
+          echo "$NEW_TASK_DEF" > new-task-def.json
+
+          aws ecs register-task-definition --cli-input-json file://new-task-def.json
+
+          # Force ECS Service to Deploy the New Task Definition
+          aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --force-new-deployment
