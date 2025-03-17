@@ -17,11 +17,3 @@ resource "aws_ecr_repository" "celery_repo" {
     Environment = var.environment
   }
 }""" */
-
-data "aws_ecr_repository" "django_repo" {
-  name = "django-app-dev"
-}
-
-data "aws_ecr_repository" "celery_repo" {
-  name = "celery-worker-dev"
-}

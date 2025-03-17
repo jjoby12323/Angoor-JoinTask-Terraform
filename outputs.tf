@@ -22,7 +22,7 @@ output "redis_primary_endpoint" {
 output "alb_dns" {
   description = "DNS name of the Application Load Balancer"
   value       = aws_lb.django_alb.dns_name
-}""" */
+}
 
 output "ecr_django_repo" {
   value = aws_ecr_repository.django_repo.repository_url
@@ -46,4 +46,4 @@ output "ecs_django_task_definition" {
 
 output "ecs_celery_task_definition" {
   value = aws_ecs_task_definition.celery.arn
-}
+}""" */

@@ -1,4 +1,13 @@
 # Fetch the latest image tag from ECR dynamically
+
+data "aws_ecr_repository" "django_repo" {
+  name = "django-app-dev"
+}
+
+data "aws_ecr_repository" "celery_repo" {
+  name = "celery-worker-dev"
+}
+
 data "aws_ecr_image" "django_latest" {
   repository_name = "django-app-dev"
   most_recent     = true
