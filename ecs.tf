@@ -1,10 +1,12 @@
-# Fetch Existing ECR Repositories
-data "aws_ecr_repository" "django_repo" {
-  name = "django-app-${var.environment}"
+# Fetch the latest image tag from ECR dynamically
+data "aws_ecr_image" "django_latest" {
+  repository_name = "django-app-dev"
+  most_recent     = true
 }
 
-data "aws_ecr_repository" "celery_repo" {
-  name = "celery-worker-${var.environment}"
+data "aws_ecr_image" "celery_latest" {
+  repository_name = "celery-worker-dev"
+  most_recent     = true
 }
 
 # Fetch Existing ECS Task Execution Role
@@ -44,7 +46,7 @@ resource "aws_ecs_task_definition" "django" {
   container_definitions = jsonencode([
     {
       name  = "django-server"
-      image = "${data.aws_ecr_repository.django_repo.repository_url}:latest"
+      image = "${data.aws_ecr_repository.django_repo.repository_url}@${data.aws_ecr_image.django_latest.image_digest}"
       memory = 512
       cpu = 256
       essential = true
@@ -82,7 +84,7 @@ resource "aws_ecs_task_definition" "celery" {
   container_definitions = jsonencode([
     {
       name  = "celery-workers"
-      image = "${data.aws_ecr_repository.celery_repo.repository_url}:latest"
+      image = "${data.aws_ecr_repository.celery_repo.repository_url}@${data.aws_ecr_image.celery_latest.image_digest}"
       memory = 512
       cpu = 256
       essential = true

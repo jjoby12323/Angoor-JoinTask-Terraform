@@ -1,4 +1,4 @@
-# ECR repository for Django app
+/* """# ECR repository for Django app
 resource "aws_ecr_repository" "django_repo" {
   name = "django-app-${var.environment}"
 
@@ -16,4 +16,4 @@ resource "aws_ecr_repository" "celery_repo" {
     Name        = "celery-worker-${var.environment}"
     Environment = var.environment
   }
-}
+}""" */
