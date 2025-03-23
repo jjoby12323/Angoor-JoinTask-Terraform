@@ -67,7 +67,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: jjoby12323/Angoor-JoinTask-Django
-          ref: ${{ github.event.client_payload.branch || github.ref_name }}
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
