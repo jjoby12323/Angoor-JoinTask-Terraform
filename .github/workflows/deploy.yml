@@ -14,15 +14,15 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ENVIRONMENT: ${{ startsWith(github.ref, 'refs/heads/prod-') && 'prod' || 'staging' }}
-      ECR_DJANGO: ${{ startsWith(github.ref, 'refs/heads/prod-') && '762233750800.dkr.ecr.us-east-1.amazonaws.com/django-app-prod' || '762233750800.dkr.ecr.us-east-1.amazonaws.com/django-app-staging' }}
-      ECR_CELERY: ${{ startsWith(github.ref, 'refs/heads/prod-') && '762233750800.dkr.ecr.us-east-1.amazonaws.com/celery-worker-prod' || '762233750800.dkr.ecr.us-east-1.amazonaws.com/celery-worker-staging' }}
+      ECR_DJANGO: 762233750800.dkr.ecr.us-east-1.amazonaws.com/django-app-dev
+      ECR_CELERY: 762233750800.dkr.ecr.us-east-1.amazonaws.com/celery-worker-dev
 
     steps:
       - name: Checkout Django Repository
         uses: actions/checkout@v4
         with:
           repository: jjoby12323/Angoor-JoinTask-Django
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.event.client_payload.branch || github.ref_name }}
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -67,7 +67,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: jjoby12323/Angoor-JoinTask-Terraform
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.event.client_payload.branch || github.ref_name }}
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
