@@ -15,7 +15,3 @@ data "aws_subnets" "public" {
 data "aws_subnet" "public_a" {
   id = tolist(data.aws_subnets.public.ids)[0] # Selects the first available public subnet
 }
-/* 
-data "aws_subnet" "public_b" {
-  id = tolist(data.aws_subnets.public.ids)[1] # Second available public subnet
-} */

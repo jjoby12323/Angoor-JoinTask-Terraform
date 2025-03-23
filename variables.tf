@@ -12,3 +12,27 @@ variable "environment" {
 variable "aws_region" {
   default = "us-east-1"
 }
+
+variable "db_username" {
+  description = "Master username for RDS"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_password" {
+  description = "Master password for RDS"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_name" {
+  description = "Database Name inside RDS Postgres instance"
+  type        = string
+  sensitive   = true
+}
+
+variable "db_port" {
+  description = "PostgreSQL port"
+  type        = number
+  default     = 5432
+}
