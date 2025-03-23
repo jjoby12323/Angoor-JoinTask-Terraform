@@ -1,28 +1,19 @@
-name: Deploy to Staging/Production
+name: Build & Deploy Infrastructure
 
 on:
-  push:
-    branches:
-      - staging-*
-      - prod-*
-  repository_dispatch:
-    types: [deploy_terraform]
+  workflow_dispatch:  # Allows manual triggering from GitHub Actions
 
 jobs:
   docker:
     name: Build and Push Docker Images
     runs-on: ubuntu-latest
-    env:
-      ENVIRONMENT: ${{ startsWith(github.ref, 'refs/heads/prod-') && 'prod' || 'staging' }}
-      ECR_DJANGO: 762233750800.dkr.ecr.us-east-1.amazonaws.com/django-app-dev
-      ECR_CELERY: 762233750800.dkr.ecr.us-east-1.amazonaws.com/celery-worker-dev
 
     steps:
       - name: Checkout Django Repository
         uses: actions/checkout@v4
         with:
           repository: jjoby12323/Angoor-JoinTask-Django
-          ref: ${{ github.event.client_payload.branch || github.ref_name }}
+          ref: main
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -31,6 +22,11 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: Set ECR Repositories
+        run: |
+          echo "ECR_DJANGO=762233750800.dkr.ecr.us-east-1.amazonaws.com/django-app-dev" >> $GITHUB_ENV
+          echo "ECR_CELERY=762233750800.dkr.ecr.us-east-1.amazonaws.com/celery-worker-dev" >> $GITHUB_ENV
+
       - name: Login to Amazon ECR
         run: |
           aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_DJANGO
@@ -38,13 +34,14 @@ jobs:
 
       - name: Build and Push Django Image
         run: |
-          IMAGE_TAG=$(date +%s)
+          IMAGE_TAG=$(date +%s)  # Use timestamp for unique tagging
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
 
           docker build -t django-app:$IMAGE_TAG -f Dockerfile .
           docker tag django-app:$IMAGE_TAG $ECR_DJANGO:$IMAGE_TAG
           docker push $ECR_DJANGO:$IMAGE_TAG
 
+          # Tag latest for ECS compatibility
           docker tag django-app:$IMAGE_TAG $ECR_DJANGO:latest
           docker push $ECR_DJANGO:latest
 
@@ -54,6 +51,7 @@ jobs:
           docker tag celery-worker:$IMAGE_TAG $ECR_CELERY:$IMAGE_TAG
           docker push $ECR_CELERY:$IMAGE_TAG
 
+          # Tag latest for ECS compatibility
           docker tag celery-worker:$IMAGE_TAG $ECR_CELERY:latest
           docker push $ECR_CELERY:latest
 
@@ -67,16 +65,24 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: jjoby12323/Angoor-JoinTask-Terraform
+          path: terraform  # ✅ Clones into ./terraform
 
-      - name: Change directory into Terraform code
-        run: cd $GITHUB_WORKSPACE/Angoor-JoinTask-Terraform && ls -la
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.0
 
       - name: Terraform Init
-        run: |
-          cd $GITHUB_WORKSPACE/Angoor-JoinTask-Terraform
-          terraform init
+        run: terraform init
+        working-directory: ./terraform  # ✅ Ensures Terraform runs in correct path
 
       - name: Terraform Apply
-        run: |
-          cd $GITHUB_WORKSPACE/Angoor-JoinTask-Terraform
-          terraform apply -auto-approve
+        run: terraform apply -auto-approve
+        working-directory: ./terraform  # ✅ Ensures Terraform runs in correct path
