@@ -66,7 +66,7 @@ jobs:
       - name: Checkout Terraform Repository
         uses: actions/checkout@v4
         with:
-          repository: jjoby12323/Angoor-JoinTask-Terraform
+          repository: jjoby12323/Angoor-JoinTask-Django
           ref: ${{ github.event.client_payload.branch || github.ref_name }}
 
       - name: Configure AWS Credentials
